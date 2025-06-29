@@ -1,227 +1,25 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[52]:
+# In[146]:
 
 
 import requests
 import json
 from itertools import product
 import datetime
+import copy
+import os
+import glob
+import pandas as pd
 # import nbconvert
 
 # !jupyter nbconvert --to script AlphaStream.ipynb
 
 
-# # Outdated Functions
-# These are past versions of the functions below, for safekeeping reasons
-
-# In[2]:
-
-
-"""
-Function that takes the full sequence and makes a json file out of it
-"""
-
-# def create_af3_job(sequences, name="af3_job"):
-#     job = {
-#         "name": name,
-#         "version": 1,
-#         "dialect": "alphafoldserver",
-#         "sequences": sequences
-#     }
-
-#     return job
-
-# #Example:
-
-# sequences = [
-#     {"proteinChain": {"sequence": "mflrsvnravtrsilttpkpavvksswrvftvanskrcftpaaimrnqetqrvgdilqselkieketlpestsldsfndflnkykfslvetpgkneaeivrrtesgetvhvffdvaqianlpynnamdenteqnedgineddfdalsdnfanvnvviskesasepavsfellmnlqegsfyvdsatpypsvdaalnqsaeaeitrelvyhgppfsnldeelqesleaylesrgvneelasfisaysefkenneyiswlekmkkffh", "count": 1, "useStructureTemplate": True}}
-# ]
-
-# job = create_af3_job(sequences)
-
-# with open("job.json", "w") as f:
-#     json.dump([job], f, indent=2)
-
-"""
-Create a function which acts as a helper function in future functions, which creates a json file in accordance to AlphaFold requisites
-"""
-# def create_af3_job(protein_name, count = 1, template = True, name_prefix="af3_job"):
-#     sequence = get_uniprot_sequence(protein_name)
-#     job = {
-#         "name": f"{name_prefix}_{protein_name}",
-#         "version": 1,
-#         "dialect": "alphafoldserver",
-#         "sequences": [
-#             {
-#                 "proteinChain": {
-#                     "sequence" : sequence, #SEQUENCE_VARIABLE
-#                     "count" : count, #COUNT_VARIABLE
-#                     "usesStructureTemplate" : template #STRUCTURE_TEMPLATE_VARIABLE
-#                 }
-#             }
-#         ]
-#     }
-#     return job
-
-"""
-Function that takes multiple protein names and makes json jobs out of it
-The Output is a json file for AF in list style, so each proteins gets a prediction value 
-"""
-# def proteins_to_af3_job(*protein_names, template=True, count=1, name_prefix="af3_job"):
-
-#     jobs = []
-
-#     for i, name in enumerate(protein_names, start=1):
-#         sequence = get_uniprot_sequence(name) # use the function defined above
-#         job = {
-#             "name": f"{name_prefix}_{name}",
-#             "version": 1,
-#             "dialect": "alphafoldserver",
-#             "sequences": [{
-#                 "proteinChain": {
-#                     "sequence": sequence,
-#                     "count": count,
-#                     "useStructureTemplate": template
-#                 }
-#             }]
-#         }
-#         jobs.append(job)
-
-#     with open("job.json", "w") as f:
-#         json.dump(jobs, f, indent=2)
-
-# Updated Version with helper function:
-
-# might replace completely with Handle Count Version
-"""
-Function that takes multiple protein names and makes json jobs out of it
-The Output is a json file for AF in list style, so each proteins gets a prediction value 
-"""
-
-# def proteins_to_af3_job(*protein_names, template=True, count=1, name_prefix="af3_job"):
-
-#     jobs = []
-
-#     for i, protein_name in enumerate(protein_names, start=1):
-#         job = create_af3_job(protein_name, count = count, template = template, name_prefix = name_prefix)
-#         jobs.append(job)
-
-#     with open("job.json", "w") as f:
-#         json.dump(jobs, f, indent=2) 
-
-"""
-Function that takes multiple protein names and makes json jobs out of it
-The Output is a json file for AF in list style, so each proteins gets a prediction value, but this time,
-you can add a *list* of counts to change the number of proteins in the single job
-"""
-
-# def count_proteins_to_af3_job(*protein_names, template=True, count=1, name_prefix="af3_job"):
-
-#     jobs = []
-
-#     for i, name in enumerate(protein_names):
-#         actual_count = count[i] if isinstance(count, list) else count
-#         sequence = get_uniprot_sequence(name)
-#         job = {
-#             "name": f"{name_prefix}_{name}",
-#             "version": 1,
-#             "dialect": "alphafoldserver",
-#             "sequences": [{
-#                 "proteinChain": {
-#                     "sequence": sequence,
-#                     "count":actual_count,
-#                     "useStructureTemplate": template
-#                 }
-#             }]
-#         }
-#         jobs.append(job)
-
-#     with open("job.json", "w") as f:
-#         json.dump(jobs, f, indent=2)
-
-
-
-"""
-Function that takes *multiple dictionaries* with protein names and their respective count.
-spits out a json list with as many jobs as there are dictionaries, and this time
-every job can entail multiple proteins at the same time!
-"""
-
-# def single_compounds_af3(*protein_compounds, template = True, name_prefix = "af3_single_compound_job"): # protein_compounds are dictionaries
-
-#     jobs = []
-
-#     for i, protein_compound in enumerate(protein_compounds):
-#         sequences = []
-#         for protein_name, count in protein_compound.items():
-#             sequence = get_uniprot_sequence(protein_name)
-#             sequences.append({
-#                 "proteinChain": {
-#                     "sequence": sequence,
-#                     "count": count,
-#                     "useStructureTemplate": template
-#                 }
-#             })
-
-#         job = {
-#             "name": f"{name_prefix}_{i+1}", # get more suitable name for jobs !!! make it so it reflects the inputted proteins
-#             "version": 1,
-#             "dialect": "alphafoldserver",
-#             "sequences": sequences
-#         }
-
-#         jobs.append(job)
-
-#     with open("job.json", "w") as f:
-#         json.dump(jobs, f, indent=2)
-
-"""
-This is an alternative to the previous compound function
-Function that takes *one single dictionary* with protein names and their respective count/ranges.
-It uses the combine_count_ranges() Function and then 
-spits out json-lists with as many jobs as there are dictionaries (output combine function)
-"""
-
-# Copy last compund function to make it work with lists instead of single arguments
-# def iterative_compound_af3(range_dictionary, template = True, name_prefix = "af3_iterative_compound_job"):
-
-#     jobs = []
-
-#     protein_compounds = combine_count_ranges(range_dictionary) # is list
-
-#     job_num = 1
-
-#     for protein_compound in protein_compounds: #is dictionary
-#         sequences = []
-#         for protein_name, count in protein_compound.items():
-#             sequence = get_uniprot_sequence(protein_name)
-#             sequences.append({
-#                 "proteinChain": {
-#                     "sequence": sequence,
-#                     "count": count,
-#                     "useStructureTemplate": template
-#                 }
-#             })
-
-#         job = {
-#             "name": f"{name_prefix}_{job_num}", 
-#             "version": 1,
-#             "dialect": "alphafoldserver",
-#             "sequences": sequences
-#         }
-
-#         jobs.append(job)
-#         job_num += 1
-
-#     with open("job.json", "w") as f:
-#         json.dump(jobs, f, indent=2)
-
-
 # # Helper Function: Protein-Sequence request
 
-# In[3]:
+# In[32]:
 
 
 """
@@ -259,7 +57,7 @@ def get_uniprot_sequence(protein_name, taxon_id="559292"):
 # 
 # Noting right here, that these don't open a json-file just yet, they only return a job string in json format together.
 
-# In[21]:
+# In[30]:
 
 
 """
@@ -540,7 +338,7 @@ def rico(range_dictionary, template = True, name_prefix = "rico", file_name = ""
     ace(*protein_compounds, template = template, name_prefix = name_prefix, file_name = file_name, name = name, ashelper = True)
 
 
-# In[23]:
+# In[3]:
 
 
 # rico(
@@ -556,6 +354,109 @@ def rico(range_dictionary, template = True, name_prefix = "rico", file_name = ""
 # }, file_name="test")
 
 
+# # Pair Function
+
+# In[161]:
+
+
+def pair(pairsubjects, *pairobjects, count = 0, file_name = "", name_prefix = "pairing"):
+    if not isinstance(pairsubjects, list):
+        raise ValueError("The first input (pairsubjects) needs to be a list (format: []) with one or more protein names or sequences")
+    if len(pairsubjects) == 0:
+        raise ValueError("Enter a non-empty list for parameter: pairsubjects")
+    if len(pairobjects) == 0:
+        raise ValueError("Enter parameter: pairsubjects as list with strings (format = ['Protein1', 'Protein2']) AND parameter: pairobjects as strings (format example = 'Protein3', 'Protein4')")
+    if count == 0:
+        count = [1] * len(pairobjects)
+    else:
+        if not isinstance(count, list):
+            raise ValueError("Count must be a list (format = [])")
+        if len(count) != len(pairobjects):
+            raise ValueError("Count must be a list (format = []) with the same amount of inputs as your pairobjects")
+
+    defined_name = [p[:7] if len(p) > 15 else p for p in pairsubjects]
+    jobs = []
+    job_template = create_af3_job(*pairsubjects)
+    tokens = 0
+    for i, p in enumerate(pairobjects):
+        add_protein = additional_sequence_json(p, count[i])[0]
+        paired_job = copy.deepcopy(job_template)
+        paired_job["sequences"].append(add_protein)
+        paired_job["name"] = f"{name_prefix + str(i+1)}_{"_and_".join(defined_name)}"
+        for j, seq in enumerate(paired_job["sequences"]):
+            tokens += len(seq["proteinChain"]["sequence"]) * seq["proteinChain"]["count"]
+        if tokens > 5120:
+            raise ValueError(f"The job for pairing {'_and_'.join(defined_name)} with {count[i]} {p[:7] if len(p) > 15 else p} uses more than 5120 tokens.")
+        else:
+            tokens = 0
+        jobs.append(paired_job)
+
+
+    x = datetime.datetime.now()
+    if len(file_name) == 0:
+        with open(f"pair_{'_and_'.join(defined_name)}_{x.strftime("%d%b_%H_%M_%S")}.json", "w") as f:
+            json.dump(jobs, f, indent=2)
+    else:
+        with open(f"{file_name}_{x.strftime("%d%b_%H_%M_%S")}.json", "w") as f:
+            json.dump(jobs, f, indent=2)
+
+
+# # Search Function
+
+# In[158]:
+
+
+import os
+import glob
+import json
+import pandas as pd
+
+def search(parent_folder: str) -> pd.DataFrame:
+    results = []
+    # List all subfolders in the parent_folder
+    for subfolder in os.listdir(parent_folder):
+        subfolder_path = os.path.join(parent_folder, subfolder)
+        if not os.path.isdir(subfolder_path):
+            continue
+        # Find all summary_confidences JSON files
+        pattern = os.path.join(subfolder_path, "fold_*_summary_confidences_*.json")
+        files = glob.glob(pattern)
+        best = None
+        for f in files:
+            with open(f, "r") as fh:
+                data = json.load(fh)
+            score = data.get("ranking_score", float('-inf'))
+            if best is None or score > best["ranking_score"]:
+                best = {
+                    "folder": subfolder,
+                    "iptm": data.get("iptm"),
+                    "ptm": data.get("ptm"),
+                    "ranking_score": score
+                }
+        # Add protein counts from job_request.json
+        job_request_path = os.path.join(subfolder_path, "fold_" + subfolder + "_job_request.json")
+        if os.path.exists(job_request_path):
+            with open(job_request_path, "r") as fh:
+                job_data = json.load(fh)
+            # job_data might be a list or dict, handle both
+            if isinstance(job_data, list):
+                job_data = job_data[0]
+            for seq in job_data.get("sequences", []):
+                sequence = seq["proteinChain"]["sequence"]
+                count = seq["proteinChain"]["count"]
+                col_name = sequence[:7]
+                best[col_name] = count
+        if best:
+            results.append(best)
+    df = pd.DataFrame(results)
+    df = df.sort_values("ranking_score", ascending=False).reset_index(drop=True)
+    return df
+
+
+# In[164]:
+
+
+# search("folds_2025_06_18_08_59")
 
 
 # # Zusammenfassung und tests
