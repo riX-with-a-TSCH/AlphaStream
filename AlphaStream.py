@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[146]:
+# In[67]:
 
 
 import requests
@@ -19,7 +19,7 @@ import pandas as pd
 
 # # Helper Function: Protein-Sequence request
 
-# In[32]:
+# In[4]:
 
 
 """
@@ -57,7 +57,7 @@ def get_uniprot_sequence(protein_name, taxon_id="559292"):
 # 
 # Noting right here, that these don't open a json-file just yet, they only return a job string in json format together.
 
-# In[30]:
+# In[5]:
 
 
 """
@@ -136,7 +136,7 @@ def create_af3_job(*protein_name, count = 1, template = True, name_prefix="af3_j
 
 # # Split Function
 
-# In[7]:
+# In[49]:
 
 
 """
@@ -153,7 +153,7 @@ name_prefix : str
 file_name : str
 """
 
-def split(*protein_names, count = 1, template=True, file_name = "", name_prefix="af3_job"):
+def split(*protein_names, count = 1, template=True, file_name = "", name_prefix="split"):
 
     if len(protein_names) > 1:
         if isinstance(count, int):
@@ -184,10 +184,10 @@ def split(*protein_names, count = 1, template=True, file_name = "", name_prefix=
             json.dump(jobs, f, indent=2)
 
 
-# In[8]:
+# In[51]:
 
 
-#split("Pim1", "MNQLGALAQVSRFTQNFSMENIKSEFQSLQSKLATLRTPQEFFNFKKISKPQNFGEVQSRVAYNLKYFSSNYGLIIGCLSIYTLLTNLLLLFVIVLVVAGIVGINKLKGEELVTPFGSFKTNQLYTGLVCVAVPIGFLASPISTLLWLIGASAVSVFGHASLMEKPIETVFDEETV", count = 3, file_name = "HiThere")
+# split("Pim1", "MNQLGALAQVSRFTQNFSMENIKSEFQSLQSKLATLRTPQEFFNFKKISKPQNFGEVQSRVAYNLKYFSSNYGLIIGCLSIYTLLTNLLLLFVIVLVVAGIVGINKLKGEELVTPFGSFKTNQLYTGLVCVAVPIGFLASPISTLLWLIGASAVSVFGHASLMEKPIETVFDEETV", count = 3, file_name = "SPLIT")
 # or more - Syntax Okay?
 #split("SomeFakeProtein")
 
@@ -195,7 +195,7 @@ def split(*protein_names, count = 1, template=True, file_name = "", name_prefix=
 # # Ace Function
 # Be minutious with your input.
 
-# In[31]:
+# In[7]:
 
 
 """
@@ -244,15 +244,15 @@ def ace(*protein_compounds, template = True, name_prefix = "ace", file_name = ""
             json.dump(jobs, f, indent=2)
 
 
-# In[33]:
+# In[18]:
 
 
-#ace({"Pim1" : 1, "YBL022C": 22}, {"mam33" : 4, "Pim1" : 1}, file_name="Ace") # Syntax zu schwierig?
+# ace({"Pim1" : 1, "YBL022C": 2}, {"mam33" : 4, "Pim1" : 1}, file_name="ACE") # Syntax zu schwierig?
 
 
 # # Helper Function: Cartesian-Product for protein ranges 
 
-# In[11]:
+# In[10]:
 
 
 """
@@ -306,7 +306,7 @@ def combine_count_ranges(protein_counts):
 
 # # Rico Function
 
-# In[13]:
+# In[11]:
 
 
 """
@@ -338,7 +338,7 @@ def rico(range_dictionary, template = True, name_prefix = "rico", file_name = ""
     ace(*protein_compounds, template = template, name_prefix = name_prefix, file_name = file_name, name = name, ashelper = True)
 
 
-# In[3]:
+# In[21]:
 
 
 # rico(
@@ -356,7 +356,7 @@ def rico(range_dictionary, template = True, name_prefix = "rico", file_name = ""
 
 # # Pair Function
 
-# In[161]:
+# In[26]:
 
 
 def pair(pairsubjects, *pairobjects, count = 0, file_name = "", name_prefix = "pairing"):
@@ -382,7 +382,7 @@ def pair(pairsubjects, *pairobjects, count = 0, file_name = "", name_prefix = "p
         add_protein = additional_sequence_json(p, count[i])[0]
         paired_job = copy.deepcopy(job_template)
         paired_job["sequences"].append(add_protein)
-        paired_job["name"] = f"{name_prefix + str(i+1)}_{"_and_".join(defined_name)}"
+        paired_job["name"] = f"{name_prefix + str(i+1)}_{"_and_".join(defined_name)}_and_{p[:7] if len(p) > 15 else p}"
         for j, seq in enumerate(paired_job["sequences"]):
             tokens += len(seq["proteinChain"]["sequence"]) * seq["proteinChain"]["count"]
         if tokens > 5120:
@@ -400,22 +400,21 @@ def pair(pairsubjects, *pairobjects, count = 0, file_name = "", name_prefix = "p
         with open(f"{file_name}_{x.strftime("%d%b_%H_%M_%S")}.json", "w") as f:
             json.dump(jobs, f, indent=2)
 
+pair(["Mrpl15", "fcyx"], "pim1", "mam33", "LALALALALLALALALALLALALALALALLALALALALLALALALALALLALALALLALAALLALALALLALA", file_name = "PAIR")
+
+
 
 # # Search Function
 
-# In[158]:
+# In[63]:
 
-
-import os
-import glob
-import json
-import pandas as pd
 
 def search(parent_folder: str) -> pd.DataFrame:
     results = []
     # List all subfolders in the parent_folder
     for subfolder in os.listdir(parent_folder):
         subfolder_path = os.path.join(parent_folder, subfolder)
+        #skip the md file and focus on the jobs that come in subfolders
         if not os.path.isdir(subfolder_path):
             continue
         # Find all summary_confidences JSON files
@@ -431,9 +430,11 @@ def search(parent_folder: str) -> pd.DataFrame:
                     "folder": subfolder,
                     "iptm": data.get("iptm"),
                     "ptm": data.get("ptm"),
-                    "ranking_score": score
+                    "ranking_score": score,
+                    "fraction_disordered": data.get("fraction_disordered"),
+                    "has_clash": data.get("has_clash")
                 }
-        # Add protein counts from job_request.json
+        # Add protein counts and name for their columns from job_request.json
         job_request_path = os.path.join(subfolder_path, "fold_" + subfolder + "_job_request.json")
         if os.path.exists(job_request_path):
             with open(job_request_path, "r") as fh:
@@ -441,22 +442,23 @@ def search(parent_folder: str) -> pd.DataFrame:
             # job_data might be a list or dict, handle both
             if isinstance(job_data, list):
                 job_data = job_data[0]
-            for seq in job_data.get("sequences", []):
+            # print(job_data.get("name", []))
+            col_names = job_data.get("name", []).split("_and_")
+            # because of structure of names (starting with rico1_prot_and_prot_and...) you have to resplit the first one 
+            col_names[0] = col_names[0].split("_")[1]
+            for i, seq in enumerate(job_data.get("sequences", [])):
                 sequence = seq["proteinChain"]["sequence"]
                 count = seq["proteinChain"]["count"]
-                col_name = sequence[:7]
+                col_name = col_names[i]
                 best[col_name] = count
         if best:
             results.append(best)
+
+
     df = pd.DataFrame(results)
     df = df.sort_values("ranking_score", ascending=False).reset_index(drop=True)
+    df = df.fillna("None")
     return df
-
-
-# In[164]:
-
-
-# search("folds_2025_06_18_08_59")
 
 
 # # Zusammenfassung und tests
@@ -491,7 +493,7 @@ def search(parent_folder: str) -> pd.DataFrame:
 # - update: they use jupyter lab as well
 
 
-# In[35]:
+# In[65]:
 
 
 # """
